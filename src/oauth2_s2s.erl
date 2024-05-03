@@ -27,6 +27,7 @@ get_access_token() ->
  get_access_token(Scope) ->
     access_token(Scope).
 
+%% this function is used to get the access token, reading the values from the erl sys.config file  
 access_token(Scope) ->
   {ok, Host} = application:get_env(oauth2_s2s, host),
   {ok, Aud} = application:get_env(oauth2_s2s, aud),
@@ -46,6 +47,40 @@ access_token(Scope) ->
     make_http_req(post,Host,
                     "application/x-www-form-urlencoded",
                     <<"grant_type=",GrantType/binary,"&assertion=",Jwt/binary>>).
+
+%% this function is used to get the access token for simbble app. readding the values from the simbble config 
+%% ensure the following entries are in the /efs/openssl/simbble.config file 
+%%    "googleoauth2_host": 
+%%    "googleoauth2_aud":
+%%    "googleoauth2_iss":
+%%    "googleoauth2_grant_type":
+%%    "googleoauth2_private_key":
+
+access_token_for_simbble() -> 
+    Host = case simbble_config:read(googleoauth2_host) of
+        undefined -> throw({error, "googleoauth2_host not found in simbble.config"});
+        Host -> Host
+        end,
+
+    Aud = simbble_config:read(googleoauth2_aud),
+    Iss = simbble_config:read(googleoauth2_iss),
+    GrantType = simbble_config:read(googleoauth2_grant_type),
+    EncodedPrivateKey1 = simbble_config:read(googleoauth2_private_key),
+    [PemEntry] = public_key:pem_decode(EncodedPrivateKey1),
+    PrivateKey = public_key:pem_entry_decode(PemEntry),
+    EncodedJWTHeader = encode_base64(?JWT_HEADER),
+    EncodedJWTClaimSet = encode_base64(jwt_claim_set(Iss, Scope, Aud)),
+    Signature = compute_signature(EncodedJWTHeader, EncodedJWTClaimSet, PrivateKey),
+    Jwt = binary:replace(
+        binary:replace(<<EncodedJWTHeader/binary, ".", EncodedJWTClaimSet/binary, ".", Signature/binary>>,
+                     <<"+">>, <<"-">>, [global]),
+        <<"/">>, <<"_">>, [global]),
+    io:format("HOST::~p ~p ~p ~n ~p ~n ~p ~n",[Host, Aud, Iss, GrantType, Jwt]),
+    make_http_req(post,Host,
+                    "application/x-www-form-urlencoded",
+                    <<"grant_type=",GrantType/binary,"&assertion=",Jwt/binary>>).
+
+
 
 encode_base64(Json) ->
     base64:encode(jsx:encode(Json)).
