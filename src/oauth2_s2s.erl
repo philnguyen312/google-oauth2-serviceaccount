@@ -1,5 +1,5 @@
 -module(oauth2_s2s).
--export([start/0,get_access_token/0,get_access_token/1]).
+-export([start/0,get_access_token/0,get_access_token/1, access_token_for_simbble/0]).
 
 
 -include_lib("public_key/include/public_key.hrl").
@@ -55,13 +55,15 @@ access_token(Scope) ->
 %%    "googleoauth2_iss":
 %%    "googleoauth2_grant_type":
 %%    "googleoauth2_private_key":
+%%    "googgleoauth2_scope":
 
 access_token_for_simbble() -> 
     Host = case simbble_config:read(googleoauth2_host) of
         undefined -> throw({error, "googleoauth2_host not found in simbble.config"});
-        Host -> Host
+        _Host -> _Host
         end,
 
+    Scope = simbble_config:read(googleoauth2_scope),
     Aud = simbble_config:read(googleoauth2_aud),
     Iss = simbble_config:read(googleoauth2_iss),
     GrantType = simbble_config:read(googleoauth2_grant_type),
