@@ -4,7 +4,8 @@
 
 -include_lib("public_key/include/public_key.hrl").
 %%path of the RSA key file , check READ me for more info
--define(RSA_KEY_PATH,"oauth_test-6aaebb132d95_RSA.pem").
+%%-define(RSA_KEY_PATH,"oauth_test-6aaebb132d95_RSA.pem").
+-define(RSA_KEY_PATH,"private_key.pem").
 -define(JWT_HEADER,[{alg, <<"RS256">>}, {typ, <<"JWT">>}]).
 
 start() ->
@@ -41,7 +42,7 @@ access_token(Scope) ->
         binary:replace(<<EncodedJWTHeader/binary, ".", EncodedJWTClaimSet/binary, ".", Signature/binary>>,
                      <<"+">>, <<"-">>, [global]),
         <<"/">>, <<"_">>, [global]),
-%%    io:format("Jwt::~p~n",[Jwt]),
+    io:format("HOST::~p ~p ~p ~n ~p ~n ~p ~n",[Host, Aud, Iss, GrantType, Jwt]),
     make_http_req(post,Host,
                     "application/x-www-form-urlencoded",
                     <<"grant_type=",GrantType/binary,"&assertion=",Jwt/binary>>).
@@ -64,15 +65,16 @@ compute_signature(Header, ClaimSet, #'RSAPrivateKey'{publicExponent=Exponent,
 
 
 make_http_req(Method, Url, ContType, Body) ->
-case httpc:request(Method, {binary_to_list(Url), [], ContType, Body},[],[]) of
-    {ok, {{"HTTP/1.1",200, _State}, _Head, ResponseBody}} ->
-%%        io:format("Body :~p~n~n",[ResponseBody]),
-        jsx:decode(list_to_binary(ResponseBody));
-    {ok, {{"HTTP/1.1",_ResponseCode, _State}, _Head, ResponseBody}} ->
-%%        io:format("Response code : ~p~n Body :~p~n~n",[ResponseCode, ResponseBody]),
-         jsx:decode(list_to_binary(ResponseBody));
-    {error,Reason} ->
-        io:format("~nError Resason : ~p~n",[Reason]),
-        {error,Reason}
-  end.
+    io:format("Method : ~p Url : ~p~n Body : ~p~n",[Method, Url, Body]),
+    case httpc:request(Method, {binary_to_list(Url), [], ContType, Body},[],[]) of
+        {ok, {{"HTTP/1.1",200, _State}, _Head, ResponseBody}} ->
+            io:format(" 200, Head: ~p Body  : ~n~n",[_Head]),
+            jsx:decode(list_to_binary(ResponseBody));
+        {ok, {{"HTTP/1.1",_ResponseCode, _State}, _Head, ResponseBody}} ->
+            io:format("Response code : ~p~n Body :.... ~n~n",[_ResponseCode]),
+            jsx:decode(list_to_binary(ResponseBody));
+        {error,Reason} ->
+            io:format("~nError Resason : ~p~n",[Reason]),
+            {error,Reason}
+    end.
 
